@@ -1,0 +1,7 @@
+/*/src/
+/*/pkg/
+/*/*.pkg.tar*
+/*/*.log
+/*/MonoCode_*.deb
+/*/monocode-*-LICENSE
+/*/monocode-*-NOTICE
