@@ -1,0 +1,36 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/library/archlinux:base-devel
+    steps:
+      - name: Install tools
+        shell: bash
+        run: |
+          pacman -Syu --noconfirm --needed git openssh
+          useradd --create-home builder
+          git config --global --add safe.directory '*'
+
+      - name: Check out
+        shell: bash
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git clone --quiet "https://actions-bot:$TOKEN@${GITHUB_SERVER_URL#*://}/$GITHUB_REPOSITORY.git" repo
+          git -C repo checkout --quiet --detach "$GITHUB_SHA"
+          chown -R builder: repo
+
+      - name: Publish to the AUR
+        shell: bash
+        working-directory: repo
+        env:
+          BEFORE: ${{ github.event.before }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          ACTIONS_BOT_SIGNING_KEY: ${{ secrets.ACTIONS_BOT_SIGNING_KEY }}
+        run: bash .forgejo/scripts/publish.sh

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/library/archlinux:base-devel
+    steps:
+      - name: Install tools
+        shell: bash
+        run: |
+          pacman -Syu --noconfirm --needed git openssh pacman-contrib
+          useradd --create-home builder
+          echo 'builder ALL=(root) NOPASSWD: /usr/bin/pacman' >/etc/sudoers.d/builder
+          git config --global --add safe.directory '*'
+
+      - name: Check out
+        shell: bash
+        env:
+          TOKEN: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && secrets.ACTIONS_BOT_TOKEN || github.token }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          host=${GITHUB_SERVER_URL#*://}
+          git clone --quiet "https://actions-bot:$TOKEN@$host/$GITHUB_REPOSITORY.git" repo
+          cd repo
+          if [[ -n $HEAD_REF ]]; then
+            git fetch --quiet "https://actions-bot:$TOKEN@$host/$HEAD_REPO.git" "refs/heads/$HEAD_REF"
+            git checkout --quiet --detach FETCH_HEAD
+          else
+            git checkout --quiet --detach "$GITHUB_SHA"
+          fi
+          chown -R builder: .
+
+      - name: Check packages
+        shell: bash
+        working-directory: repo
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          PUSH_REF: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && github.head_ref || '' }}
+          ACTIONS_BOT_SIGNING_KEY: ${{ secrets.ACTIONS_BOT_SIGNING_KEY }}
+        run: bash .forgejo/scripts/verify.sh

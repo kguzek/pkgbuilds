@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "pkgver lines tagged with a '# renovate:' comment",
+      "managerFilePatterns": ["/(^|/)PKGBUILD$/"],
+      "matchStrings": [
+        "pkgver=(?<currentValue>\\S+) # renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)"
+      ],
+      "extractVersionTemplate": "^v?(?<version>\\d+(?:\\.\\d+)*)$"
+    }
+  ],
+  "gitIgnoredAuthors": ["git+actions-bot@guzek.uk"],
+  "packageRules": [
+    {
+      "description": "The pkgbuild check builds every bump, so 0.x and major releases can merge too",
+      "matchManagers": ["custom.regex"],
+      "matchFileNames": ["**/PKGBUILD"],
+      "automerge": true,
+      "commitMessageTopic": "{{parentDir}}"
+    }
+  ]
+}
